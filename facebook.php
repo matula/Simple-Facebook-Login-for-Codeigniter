@@ -17,8 +17,7 @@ if (!defined('BASEPATH'))
  * Requirements: PHP5 or above
  *
  */
-class Facebook extends CI_Controller
-{
+class Facebook extends CI_Controller {
 
     public $appid;
     public $apisecret;
@@ -57,12 +56,17 @@ class Facebook extends CI_Controller
             // now to get the auth token. '__getpage' is just a CURL method
             $gettoken = "https://graph.facebook.com/oauth/access_token?client_id={$this->appid}&redirect_uri={$redirect}&client_secret={$this->apisecret}&code={$code}";
             $return = $this->__getpage($gettoken);
+            // if CURL didn't return a valid 200 http code, die
+            if (!$return)
+                die('Error getting token');
             // put the token into the $access_token variable
             parse_str($return);
             // now you can save the token to a database, and use it to access the user's graph
             // for example, this will return all their basic info.  check the FB Dev docs for more.
             $infourl = "https://graph.facebook.com/me?access_token=$access_token";
             $return = $this->__getpage($infourl);
+            if (!$return)
+                die('Error getting info');
             $info = json_decode($return);
             print_r($info);
         }
@@ -77,11 +81,23 @@ class Facebook extends CI_Controller
     {
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
         $return = curl_exec($ch);
-        curl_close($ch);
-        return $return;
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        // check if it returns 200, or else return false
+        if ($http_code === 200)
+        {
+            curl_close($ch);
+            return $return;
+        }
+        else
+        {
+            // store the error. I may want to return this instead of FALSE later
+            $error = curl_error($ch);
+            curl_close($ch);
+            return FALSE;
+        }
     }
 
 }
